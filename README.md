@@ -16,6 +16,9 @@ Key capabilities:
 
 ## End-to-End Flow
 
+<img width="683" height="1190" alt="WhatsApp Image 2026-05-03 at 10 48 30 AM (1)" src="https://github.com/user-attachments/assets/b539552b-471d-4d5d-afd2-5eddc993a072" />
+
+
 1. A sensor system (for example, a microcontroller or IoT gateway) reads real hardware values:
    - Temperature sensor
    - Gas sensor
@@ -46,7 +49,10 @@ This project is relevant to ECE students and practitioners because it demonstrat
 - communication between embedded devices and a web server over HTTP
 - the use of lightweight APIs for transmitting sensor telemetry
 
-ECE learners can extend the project by connecting actual hardware, calibrating sensor readings, and adding new sensor inputs such as flame or smoke detection.
+ECE learners can extend the project by connecting actual hardware, calibrating sensor readings, and adding new sensor inputs such as flame or smoke detection.4
+<img width="438" height="601" alt="WhatsApp Image 2026-05-03 at 10 48 29 AM" src="https://github.com/user-attachments/assets/e9cb95c4-b0ad-4e5c-bcef-08a2d220a7db" />
+<img width="674" height="400" alt="WhatsApp Image 2026-05-03 at 10 48 30 AM" src="https://github.com/user-attachments/assets/ddab5cba-06a5-4810-9196-f796d8b88cf3" />
+
 
 ## Applicability for Computer Science Engineering (CSE)
 
