@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SENTINEL — Live Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0d1117;
+    --surface2: #131a22;
+    --border: rgba(255,255,255,0.07);
+    --safe: #00e5a0;
+    --warn: #ffb830;
+    --danger: #ff3b5c;
+    --text: #e8edf2;
+    --muted: #5a6a7a;
+    --accent: #00e5a0;
+    --glow-safe: 0 0 30px rgba(0,229,160,0.25);
+    --glow-warn: 0 0 30px rgba(255,184,48,0.25);
+    --glow-danger: 0 0 30px rgba(255,59,92,0.35);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Radial glow center */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    transition: background 0.8s ease;
+  }
+
+  body.status-warning::after {
+    background: radial-gradient(circle, rgba(255,184,48,0.07) 0%, transparent 70%);
+  }
+  body.status-danger::after {
+    background: radial-gradient(circle, rgba(255,59,92,0.1) 0%, transparent 70%);
+    animation: dangerPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dangerPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 40px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .logo-word {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.6rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .logo-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,229,160,0.07);
+    border: 1px solid rgba(0,229,160,0.2);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: var(--safe);
+    transition: all 0.5s ease;
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--safe);
+    animation: blink 1.4s ease-in-out infinite;
+    transition: background 0.5s ease;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* ── STATUS HERO ── */
+  .status-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px 36px;
+    margin-bottom: 24px;
+    transition: all 0.6s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .status-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,229,160,0.04) 0%, transparent 60%);
+    transition: background 0.6s ease;
+    pointer-events: none;
+  }
+
+  .status-hero.warning { border-color: rgba(255,184,48,0.3); box-shadow: var(--glow-warn); }
+  .status-hero.warning::before { background: linear-gradient(135deg, rgba(255,184,48,0.05) 0%, transparent 60%); }
+  .status-hero.danger { border-color: rgba(255,59,92,0.4); box-shadow: var(--glow-danger); }
+  .status-hero.danger::before { background: linear-gradient(135deg, rgba(255,59,92,0.06) 0%, transparent 60%); }
+
+  .status-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .status-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    background: rgba(0,229,160,0.1);
+    border: 1px solid rgba(0,229,160,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    transition: all 0.5s ease;
+    flex-shrink: 0;
+  }
+
+  .status-icon.warning { background: rgba(255,184,48,0.1); border-color: rgba(255,184,48,0.3); }
+  .status-icon.danger { background: rgba(255,59,92,0.1); border-color: rgba(255,59,92,0.35); animation: shakeIcon 0.5s ease infinite; }
+
+  @keyframes shakeIcon {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+  }
+
+  .status-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .status-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    letter-spacing: 0.1em;
+    color: var(--safe);
+    transition: color 0.5s ease;
+    line-height: 1;
+  }
+
+  .status-text.warning { color: var(--warn); }
+  .status-text.danger { color: var(--danger); }
+
+  .risk-bar-wrap {
+    flex: 1;
+    max-width: 340px;
+  }
+
+  .risk-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  .risk-score-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    color: var(--text);
+    letter-spacing: 0.05em;
+  }
+
+  .risk-bar-track {
+    height: 8px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .risk-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 100px;
+    background: var(--safe);
+    transition: width 0.7s cubic-bezier(0.34,1.56,0.64,1), background 0.6s ease;
+  }
+
+  .risk-bar-fill.warning { background: var(--warn); }
+  .risk-bar-fill.danger { background: var(--danger); }
+
+  /* ── GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease, background 0.4s ease;
+  }
+
+  .card:hover::after { transform: scaleX(1); }
+
+  .card-icon {
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+    opacity: 0.7;
+  }
+
+  .card-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .card-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.8rem;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    line-height: 1;
+    transition: color 0.4s ease;
+  }
+
+  .card-unit {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .card-rate {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+    padding: 3px 8px;
+  }
+
+  .card-rate.high { color: var(--warn); }
+
+  /* Person card */
+  .person-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .person-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--safe);
+    transition: background 0.4s ease;
+    flex-shrink: 0;
+  }
+
+  .person-dot.absent { background: var(--muted); }
+
+  .person-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  /* Absence card */
+  .absence-bar-track {
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 100px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+
+  .absence-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--muted);
+    border-radius: 100px;
+    transition: width 0.7s ease, background 0.5s ease;
+  }
+
+  /* ── BOTTOM ROW ── */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 600px) {
+    .bottom-row { grid-template-columns: 1fr; }
+  }
+
+  .mini-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.4s ease;
+  }
+
+  .mini-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(0,229,160,0.08);
+    border: 1px solid rgba(0,229,160,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    transition: all 0.4s ease;
+  }
+
+  .mini-body {}
+
+  .mini-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .mini-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  /* ── LAST UPDATED ── */
+  .footer {
+    margin-top: 24px;
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+  }
+
+  /* ─────────── ALERT OVERLAY ─────────── */
+  .alert-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+
+  .alert-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .alert-box {
+    background: #0e1216;
+    border: 1px solid rgba(255,59,92,0.4);
+    border-radius: 24px;
+    padding: 40px 48px;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 0 80px rgba(255,59,92,0.25), 0 40px 80px rgba(0,0,0,0.6);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    position: relative;
+  }
+
+  .alert-overlay.active .alert-box {
+    transform: scale(1) translateY(0);
+  }
+
+  .alert-icon-ring {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255,59,92,0.1);
+    border: 2px solid rgba(255,59,92,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin: 0 auto 20px;
+    animation: ringPulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes ringPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,59,92,0.4); }
+    50% { box-shadow: 0 0 0 16px rgba(255,59,92,0); }
+  }
+
+  .alert-status {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    color: var(--danger);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .alert-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    letter-spacing: 0.12em;
+    color: var(--danger);
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+
+  .alert-msg {
+    font-size: 0.875rem;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  .alert-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .alert-detail-item {
+    background: rgba(255,59,92,0.06);
+    border: 1px solid rgba(255,59,92,0.15);
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: left;
+  }
+
+  .alert-detail-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .alert-detail-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--danger);
+    letter-spacing: 0.05em;
+  }
+
+  .alert-warn-details .alert-detail-item {
+    background: rgba(255,184,48,0.06);
+    border-color: rgba(255,184,48,0.15);
+  }
+  .alert-warn-details .alert-detail-val { color: var(--warn); }
+
+  .dismiss-btn {
+    background: rgba(255,59,92,0.12);
+    border: 1px solid rgba(255,59,92,0.3);
+    color: var(--danger);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .dismiss-btn:hover {
+    background: rgba(255,59,92,0.2);
+    transform: translateY(-1px);
+  }
+
+  .dismiss-btn.warn-btn {
+    background: rgba(255,184,48,0.1);
+    border-color: rgba(255,184,48,0.3);
+    color: var(--warn);
+  }
+  .dismiss-btn.warn-btn:hover { background: rgba(255,184,48,0.18); }
+
+  /* Scan line effect on alert */
+  .alert-box::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--danger), transparent);
+    animation: scanLine 2s linear infinite;
+  }
+
+  @keyframes scanLine {
+    0% { top: 0; opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* Value pop animation */
+  @keyframes valuePop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  .value-updated {
+    animation: valuePop 0.3s ease;
+  }
+
+  /* Pulse on danger card values */
+  .card.danger-val .card-value {
+    color: var(--danger);
+  }
+  .card.warn-val .card-value {
+    color: var(--warn);
+  }
+
+  .data-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 24px;
+    margin-top: 24px;
+  }
+
+  .data-panel-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 16px;
+  }
+
+  .data-panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.45rem;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .data-panel-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    text-align: left;
+    font-size: 0.78rem;
+  }
+
+  .data-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+  }
+
+  .data-table td {
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+  }
+
+  .data-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .data-tag.safe { background: rgba(0,229,160,0.12); color: var(--safe); }
+  .data-tag.warning { background: rgba(255,184,48,0.12); color: var(--warn); }
+  .data-tag.danger { background: rgba(255,59,92,0.12); color: var(--danger); }
+
+  .no-data {
+    padding: 22px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 18px;
+    color: var(--muted);
+    text-align: center;
+    font-size: 0.92rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-word">IoT CookWatch</span>
+      <span class="logo-sub">Environment Monitor</span>
+    </div>
+    <div class="live-badge">
+      <div class="live-dot" id="liveDot"></div>
+      <span id="liveText">LIVE</span>
+    </div>
+  </header>
+
+  <!-- STATUS HERO -->
+  <div class="status-hero" id="statusHero">
+    <div class="status-left">
+      <div class="status-icon" id="statusIcon">🛡️</div>
+      <div>
+        <div class="status-label">System Status</div>
+        <div class="status-text" id="statusText">SAFE</div>
+      </div>
+    </div>
+    <div class="risk-bar-wrap">
+      <div class="risk-bar-label">
+        <span>RISK SCORE</span>
+        <span class="risk-score-val" id="riskScoreVal">0 / 140</span>
+      </div>
+      <div class="risk-bar-track">
+        <div class="risk-bar-fill" id="riskBarFill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid">
+    <!-- Temperature -->
+    <div class="card" id="tempCard">
+      <div class="card-icon">🌡️</div>
+      <div class="card-label">Temperature</div>
+      <div class="card-value" id="tempVal">—</div>
+      <div class="card-unit">degrees celsius</div>
+      <div class="card-rate" id="tempRate">↑ rate: — °C/s</div>
+    </div>
+
+    <!-- Gas -->
+    <div class="card" id="gasCard">
+      <div class="card-icon">💨</div>
+      <div class="card-label">Gas Level</div>
+      <div class="card-value" id="gasVal">—</div>
+      <div class="card-unit">ppm concentration</div>
+      <div class="card-rate" id="gasRate">↑ rate: — ppm/s</div>
+    </div>
+
+    <!-- Person -->
+    <div class="card" id="personCard">
+      <div class="card-icon">👤</div>
+      <div class="card-label">Occupancy</div>
+      <div class="card-value" id="personVal">—</div>
+      <div class="card-unit">person detected</div>
+      <div class="person-status">
+        <div class="person-dot" id="personDot"></div>
+        <span class="person-label" id="personLabel">Checking...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="bottom-row">
+    <div class="mini-card" id="absenceCard">
+      <div class="mini-icon">⏱️</div>
+      <div class="mini-body">
+        <div class="mini-label">Absence Time</div>
+        <div class="mini-val" id="absenceVal">— s</div>
+        <div class="absence-bar-track">
+          <div class="absence-bar-fill" id="absenceBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mini-card">
+      <div class="mini-icon" id="lastUpdIcon">🔄</div>
+      <div class="mini-body">
+        <div class="mini-label">Last Updated</div>
+        <div class="mini-val" id="lastUpdVal">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="data-panel" id="databasePanel">
+    <div class="data-panel-header">
+      <div>
+        <div class="data-panel-title">Database Events</div>
+        <div class="data-panel-meta">Stored safety events from the server</div>
+      </div>
+      <div class="data-panel-meta" id="dbUpdatedLabel">Refreshing every 15 sec</div>
+    </div>
+    <div class="mini-card" style="margin-bottom: 16px; padding: 18px 20px;">
+      <div class="mini-icon">🗄️</div>
+      <div class="mini-body">
+        <div class="mini-label">Saved Events</div>
+        <div class="mini-val" id="dbCountVal">Loading…</div>
+      </div>
+    </div>
+    <div id="dbHistory" class="no-data">Fetching database history…</div>
+  </div>
+
+  <div class="footer" id="footerTs">Polling every 2 seconds · IoT CookWatch v1.0</div>
+</div>
+
+<!-- ─── ALERT OVERLAY ─── -->
+<div class="alert-overlay" id="alertOverlay">
+  <div class="alert-box" id="alertBox">
+    <div class="alert-icon-ring" id="alertIconRing">⚠️</div>
+    <div class="alert-status" id="alertStatusLabel">Alert Triggered</div>
+    <div class="alert-title" id="alertTitle">WARNING</div>
+    <div class="alert-msg" id="alertMsg">Elevated risk detected. Please check the environment.</div>
+    <div class="alert-details" id="alertDetails"></div>
+    <button class="dismiss-btn" id="dismissBtn" onclick="dismissAlert()">ACKNOWLEDGE</button>
+  </div>
+</div>
+
+<script>
+  let lastStatus = 'SAFE';
+  let alertDismissed = false;
+  let prevData = {};
+
+  function animateValue(el) {
+    el.classList.remove('value-updated');
+    void el.offsetWidth;
+    el.classList.add('value-updated');
+  }
+
+  function setStatus(status) {
+    const hero = document.getElementById('statusHero');
+    const icon = document.getElementById('statusIcon');
+    const text = document.getElementById('statusText');
+    const fill = document.getElementById('riskBarFill');
+    const body = document.body;
+
+    hero.className = 'status-hero';
+    icon.className = 'status-icon';
+    text.className = 'status-text';
+    fill.className = 'risk-bar-fill';
+    body.className = '';
+
+    if (status === 'WARNING') {
+      hero.classList.add('warning');
+      icon.classList.add('warning');
+      text.classList.add('warning');
+      fill.classList.add('warning');
+      body.classList.add('status-warning');
+      icon.textContent = '⚡';
+    } else if (status === 'DANGER') {
+      hero.classList.add('danger');
+      icon.classList.add('danger');
+      text.classList.add('danger');
+      fill.classList.add('danger');
+      body.classList.add('status-danger');
+      icon.textContent = '🚨';
+    } else {
+      icon.textContent = '🛡️';
+    }
+
+    text.textContent = status;
+  }
+
+  function showAlert(data) {
+    const overlay = document.getElementById('alertOverlay');
+    const title = document.getElementById('alertTitle');
+    const msg = document.getElementById('alertMsg');
+    const label = document.getElementById('alertStatusLabel');
+    const ring = document.getElementById('alertIconRing');
+    const details = document.getElementById('alertDetails');
+    const btn = document.getElementById('dismissBtn');
+    const box = document.getElementById('alertBox');
+
+    const isDanger = data.status === 'DANGER';
+
+    title.textContent = data.status;
+    label.textContent = isDanger ? '🚨 Critical Alert' : '⚡ Warning Alert';
+    ring.textContent = isDanger ? '🚨' : '⚡';
+    msg.textContent = isDanger
+      ? 'Critical threshold exceeded. Immediate action required.'
+      : 'Environmental parameters are outside safe limits.';
+
+    details.className = 'alert-details' + (isDanger ? '' : ' alert-warn-details');
+    details.innerHTML = `
+      <div class="alert-detail-item">
+        <div class="alert-detail-label">Temperature</div>
+        <div class="alert-detail-val">${data.temp}°C</div>
+      </div>
+      <div class="alert-detail-item">
+        <div class="alert-detail-label">Gas Level</div>
+        <div class="alert-detail-val">${data.gas} ppm</div>
+      </div>
+      <div class="alert-detail-item">
+        <div class="alert-detail-label">Risk Score</div>
+        <div class="alert-detail-val">${data.risk_score}</div>
+      </div>
+      <div class="alert-detail-item">
+        <div class="alert-detail-label">Absence</div>
+        <div class="alert-detail-val">${data.absence_time}s</div>
+      </div>
+    `;
+
+    btn.className = isDanger ? 'dismiss-btn' : 'dismiss-btn warn-btn';
+
+    overlay.classList.add('active');
+  }
+
+  function dismissAlert() {
+    document.getElementById('alertOverlay').classList.remove('active');
+    alertDismissed = true;
+  }
+
+  function formatStatusTag(status) {
+    const cls = status === 'DANGER' ? 'danger' : status === 'WARNING' ? 'warning' : 'safe';
+    return `<span class="data-tag ${cls}">${status}</span>`;
+  }
+
+  function renderDatabaseHistory(rows) {
+    const historyEl = document.getElementById('dbHistory');
+    const countEl = document.getElementById('dbCountVal');
+    const latestUpdated = document.getElementById('dbUpdatedLabel');
+    const now = new Date();
+
+    countEl.textContent = `${rows.length} saved events`;
+    latestUpdated.textContent = `Last sync ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+
+    if (!rows.length) {
+      historyEl.className = 'no-data';
+      historyEl.textContent = 'No events have been stored yet. Active warnings and danger events will appear here once they are saved by the server.';
+      return;
+    }
+
+    const visibleRows = rows.slice(0, 5);
+    const tableRows = visibleRows.map(([id, timestamp, temp, gas, person, temp_rate, gas_rate, absence_time, risk_score, status]) => {
+      return `
+        <tr>
+          <td>${timestamp}</td>
+          <td>${temp}</td>
+          <td>${gas}</td>
+          <td>${person}</td>
+          <td>${risk_score}</td>
+          <td>${formatStatusTag(status)}</td>
+        </tr>`;
+    }).join('');
+
+    historyEl.className = '';
+    historyEl.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Recorded</th>
+            <th>Temp</th>
+            <th>Gas</th>
+            <th>Person</th>
+            <th>Score</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>`;
+  }
+
+  async function fetchDbEvents() {
+    try {
+      const res = await fetch('/all-data');
+      if (!res.ok) throw new Error('Database request failed');
+      const rows = await res.json();
+      renderDatabaseHistory(rows);
+    } catch (e) {
+      const historyEl = document.getElementById('dbHistory');
+      historyEl.className = 'no-data';
+      historyEl.textContent = 'Unable to load database events. Confirm the server is running and the SQLite database is accessible.';
+    }
+  }
+
+  async function fetchData() {
+    try {
+      const res = await fetch('/get');
+      const data = await res.json();
+
+      // Status
+      setStatus(data.status);
+
+      // Risk bar
+      const riskPct = Math.min((data.risk_score / 140) * 100, 100);
+      document.getElementById('riskBarFill').style.width = riskPct + '%';
+      document.getElementById('riskScoreVal').textContent = `${data.risk_score} / 140`;
+
+      // Temperature
+      const tempEl = document.getElementById('tempVal');
+      if (tempEl.textContent !== String(data.temp)) { animateValue(tempEl); }
+      tempEl.textContent = data.temp;
+      document.getElementById('tempCard').className = 'card' + (data.temp >= 55 ? ' danger-val' : data.temp >= 40 ? ' warn-val' : '');
+      const tempRateEl = document.getElementById('tempRate');
+      tempRateEl.textContent = `↑ rate: ${data.temp_rate} °C/s`;
+      tempRateEl.className = 'card-rate' + (data.temp_rate > 1.5 ? ' high' : '');
+
+      // Gas
+      const gasEl = document.getElementById('gasVal');
+      if (gasEl.textContent !== String(data.gas)) { animateValue(gasEl); }
+      gasEl.textContent = data.gas;
+      document.getElementById('gasCard').className = 'card' + (data.gas >= 400 ? ' danger-val' : data.gas >= 250 ? ' warn-val' : '');
+      const gasRateEl = document.getElementById('gasRate');
+      gasRateEl.textContent = `↑ rate: ${data.gas_rate} ppm/s`;
+      gasRateEl.className = 'card-rate' + (data.gas_rate > 80 ? ' high' : '');
+
+      // Person
+      document.getElementById('personVal').textContent = data.person;
+      const dot = document.getElementById('personDot');
+      const pLabel = document.getElementById('personLabel');
+      if (data.person === 1) {
+        dot.className = 'person-dot';
+        pLabel.textContent = 'Present in area';
+      } else {
+        dot.className = 'person-dot absent';
+        pLabel.textContent = 'No one detected';
+      }
+
+      // Absence
+      document.getElementById('absenceVal').textContent = `${data.absence_time}s`;
+      const absPct = Math.min((data.absence_time / 60) * 100, 100);
+      const absBar = document.getElementById('absenceBar');
+      absBar.style.width = absPct + '%';
+      absBar.style.background = data.absence_time > 30 ? 'var(--warn)' : 'var(--muted)';
+
+      // Last updated
+      const now = new Date();
+      document.getElementById('lastUpdVal').textContent =
+        now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      // Alert popup logic
+      if (data.risk && (data.status !== lastStatus) && data.status !== 'SAFE') {
+        alertDismissed = false;
+      }
+      if (data.risk && !alertDismissed) {
+        showAlert(data);
+      }
+      if (!data.risk) {
+        alertDismissed = false;
+        document.getElementById('alertOverlay').classList.remove('active');
+      }
+
+      lastStatus = data.status;
+      prevData = data;
+
+    } catch (e) {
+      document.getElementById('liveText').textContent = 'OFFLINE';
+      document.getElementById('liveDot').style.background = 'var(--danger)';
+    }
+  }
+
+  fetchData();
+  fetchDbEvents();
+  setInterval(fetchData, 2000);
+  setInterval(fetchDbEvents, 15000);
+</script>
+</body>
+</html>
