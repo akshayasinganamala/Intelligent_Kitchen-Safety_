@@ -71,6 +71,13 @@ CSE learners can build on the project by improving front-end visualization, addi
 - Monthly summary reporting via `/monthly-report`
 - Clear separation between live state and historical event data
 
+
+<img width="1904" height="904" alt="Screenshot 2026-04-18 024223" src="https://github.com/user-attachments/assets/2b2d9010-40a9-4e79-8bc0-09feca5b4457" />
+<img width="1232" height="855" alt="Screenshot 2026-04-18 025944" src="https://github.com/user-attachments/assets/bb1525fd-ea3b-47cb-a4f9-afd4d19af212" />
+<img width="1665" height="821" alt="Screenshot 2026-04-18 030033" src="https://github.com/user-attachments/assets/ceaa5fe0-c220-4d51-935e-8d07b59c1ee7" />
+<img width="1615" height="814" alt="Screenshot 2026-04-18 030535" src="https://github.com/user-attachments/assets/8fc7aea9-1a34-4d29-ae8a-29ab63da4394" />
+
+
 ## Files
 
 - `server.py` — main Flask application with database integration
